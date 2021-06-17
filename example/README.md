@@ -1,16 +1,21 @@
 # flutter_agora_messenger_example
 
-Demonstrates how to use the flutter_agora_messenger plugin.
+声网呼叫邀请SDK
 
-## Getting Started
+## A 呼叫 B
 
-This project is a starting point for a Flutter application.
+### ios端
 
-A few resources to get you started if this is your first Flutter project:
+A 调用 CallKit::startOutgoingCall，呼叫邀请通走的ios CallKit，同时调用声网rtm sdk，RTM::queryPeerOnline，RTM::sendInvitation，发起呼叫邀请，
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+B rtm sdk的remoteInvitationReceived方法收到回调，B调用CallKit::showIncomingCall显示来到的拨入电话，点击接受
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+A 收到CallKit::answerCall回调
+
+### Android端
+
+A 调用声网rtm sdk，调用RTM::queryPeersOnlineStatus，RTM::sendLocalInvitation，发起呼叫邀请，
+
+B rtm sdk的IEventListener::onRemoteInvitationReceived收到回调，调用RTM::acceptRemoteInvitation方法接受呼叫请求，
+
+A 收到IEventListener::onLocalInvitationAccepted回调

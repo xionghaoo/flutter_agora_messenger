@@ -30,13 +30,13 @@ class FlutterAgoraMessenger {
       print("call: ${call.method}");
       switch (call.method) {
         case "answerCall":
-          // 对方呼叫，本地应答
+          // ios only 对方呼叫，本地应答
           final channel = call.arguments["channel"] as String;
           final remote = call.arguments["remote"] as int;
           _answerCall?.call(channel, remote);
           break;
         case "localInvitationAccept":
-          // 本地呼叫，对方应答
+          // ios only 本地呼叫，对方应答
           final channel = call.arguments["channel"] as String;
           final remote = call.arguments["remote"] as int;
           _localInvitationAccept?.call(channel, remote);
@@ -52,8 +52,8 @@ class FlutterAgoraMessenger {
             _closeCallback?.call(type, error);
           }
           break;
-          // Android端的远程呼叫邀请
         case "onRemoteInvitationReceived":
+          // Android only 远程呼叫邀请
           final channel = call.arguments["channel"] as String;
           final remote = call.arguments["remote"] as String;
           _onRemoteInvitationReceived?.call(channel, remote);
@@ -97,10 +97,12 @@ class FlutterAgoraMessenger {
     });
   }
 
+  /// android only
   Future<String> answer() async {
     return await _methodChannel.invokeMethod("answer");
   }
 
+  /// ios only
   setAnswerCallback(AnswerCall answerCall) {
     _answerCall = answerCall;
   }
@@ -109,6 +111,7 @@ class FlutterAgoraMessenger {
     _localInvitationAccept = call;
   }
 
+  /// android only
   setOnRemoteInvitationReceived(OnRemoteInvitationReceived call) {
     _onRemoteInvitationReceived = call;
   }
