@@ -1,15 +1,11 @@
-# flutter_agora_messenger
+# flutter_agora_messenger_example
 
-A new Flutter project.
+声网呼叫邀请SDK
+[声网官方文档](https://docs.agora.io/cn/Real-time-Messaging/landing-page?platform=Android)
 
-## Getting Started
+## 呼叫流程 (A 呼叫 B)
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/developing-packages/),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
+A 调用 startOutgoingCall 发起呼叫，B 收到 remoteInvitationReceived 事件：
+    - A 挂断，B 收到 remoteInvitationCanceled 事件
+    - B 挂断，A 收到 localInvitationRefused 事件
+    - B 接听，A 收到 localInvitationAccept 事件
