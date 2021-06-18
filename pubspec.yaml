@@ -1,8 +1,8 @@
 name: flutter_agora_messenger
-description: A new Flutter project.
+description: 声网云信令flutter sdk
 version: 0.0.1
-author:
-homepage:
+author: xionghaoo
+homepage: https://github.com/xionghaoo/flutter_agora_messenger
 
 environment:
   sdk: ">=2.12.0 <3.0.0"

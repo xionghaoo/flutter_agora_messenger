@@ -57,43 +57,49 @@ class FlutterAgoraMessenger {
     
   }
 
+  // -----------   事件回调 start   -----------
+  /// 本地呼叫邀请被接受
   setLocalInvitationAccept(LocalInvitationCallback call) {
     _localInvitationAccept = call;
   }
 
+  /// 本地呼叫邀请被拒绝
   setLocalInvitationRefused(LocalInvitationCallback call) {
     _localInvitationRefused = call;
   }
 
+  /// 收到远端呼入邀请
   setRemoteInvitationReceived(RemoteInvitationCallback call) {
     _remoteInvitationReceived = call;
   }
 
+  /// 远端呼入邀请被取消
   setRemoteInvitationCanceled(RemoteInvitationCallback call) {
     _remoteInvitationCanceled = call;
   }
 
+  /// 远端呼入邀请被拒绝
   setRemoteInvitationRefused(RemoteInvitationCallback call) {
     _remoteInvitationRefused = call;
   }
 
+  /// 远端呼入邀请被接受
   setRemoteInvitationAccepted(RemoteInvitationCallback call) {
     _remoteInvitationAccepted = call;
   }
-
-  // setCloseCallback(CloseCallback callback) {
-  //   _closeCallback = callback;
-  // }
+  // -----------   事件回调 end   -----------
   
   late final MethodChannel _methodChannel;
 
   // ----   flutter call native start   ------
+  /// 初始化，填写声网申请的AppId
   initial(String appId) {
     _methodChannel.invokeMethod("initial", {
       "appId": appId
     });
   }
-  
+
+  /// RTM登陆，登录云信令服务器
   Future<String?> login(String account, String token) async {
     return await _methodChannel.invokeMethod("login", {
       "account" : account,
@@ -101,32 +107,33 @@ class FlutterAgoraMessenger {
     });
   }
 
+  /// RTM退出登陆
   Future<String> logout() async {
     return await _methodChannel.invokeMethod("logout");
   }
 
-  Future<String> startOutgoingCall(String phoneNumber) async {
+  /// 本地呼叫
+  /// peerNumber: 远端用户号码
+  Future<String> startOutgoingCall(String peerNumber) async {
     return await _methodChannel.invokeMethod("startOutgoingCall", {
-      "phoneNumber": phoneNumber
+      "phoneNumber": peerNumber
     });
   }
-  
-  // endCall(String remote) {
-  //   _methodChannel.invokeMethod("endCall", {
-  //     "remote": remote
-  //   });
-  // }
 
+  /// 本地呼叫挂断
+  /// remote: 远端用户号码
   Future<String> hungUp(String remote) async {
     return await _methodChannel.invokeMethod("hungUp", {
       "remote": remote
     });
   }
 
+  /// 接受远端呼入电话
   answerCall() {
     return _methodChannel.invokeMethod("answerCall");
   }
 
+  /// 挂断远端呼入电话
   declineCall() {
     return _methodChannel.invokeMethod("declineCall");
   }
