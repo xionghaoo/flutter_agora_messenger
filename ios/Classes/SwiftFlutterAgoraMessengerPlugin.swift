@@ -3,10 +3,17 @@ import UIKit
 import AgoraRtmKit
 //import Toast_Swift
 
+/**
+ flutter回调方法：
+ localInvitationAccept
+ localInvitationRefused
+ remoteInvitationReceived
+ remoteInvitationCanceled
+ */
 public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
 
-    private lazy var appleCallKit = CallCenter(delegate: self)
-    private var localNumber: String?
+//    private lazy var appleCallKit = CallCenter(delegate: self)
+//    private var localNumber: String?
     private var methodChannel: FlutterMethodChannel
     
     init(channel: FlutterMethodChannel) {
@@ -28,7 +35,6 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
             print("initial appid: \(appId)")
             AgoraRtm.appId = appId
             let rtm = AgoraRtm.shared()
-//            rtm.initialRtmKit(appId: appId)
             let path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first! + "/rtm.log"
             rtm.setLogPath(path)
             rtm.inviterDelegate = self
@@ -42,34 +48,105 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
         } else {
             result("param error")
         }
+    case "logout":
+        logout(result: result)
     case "startOutgoingCall":
         if let args = call.arguments as? Dictionary<String, Any?>,
            let number = args["phoneNumber"] as? String {
-            localNumber = number
-            appleCallKit.startOutgoingCall(of: number)
-            result(nil)
-        } else {
-            result("param error")
-        }
-    case "endCall":
-        if let args = call.arguments as? Dictionary<String, Any?>,
-           let remote = args["remote"] as? String {
-            appleCallKit.endCall(of: remote)
-            result(nil)
+            startOutgoingCall(remoteNumber: number, result: result)
         } else {
             result("param error")
         }
     case "hungUp":
+        // 挂断本地呼叫
         if let args = call.arguments as? Dictionary<String, Any?>,
            let remote = args["remote"] as? String {
             hungup(remote: remote, result: result)
         } else {
             result("param error")
         }
+    case "answerCall":
+        // 接听远端呼叫
+        answerCall()
+    case "declineCall":
+        // 挂断远端呼叫
+        declineCall()
     default:
         result(nil)
     }
   }
+    
+    // 直接调用rtm
+    private func startOutgoingCall(remoteNumber: String, result: @escaping FlutterResult) {
+        guard let kit = AgoraRtm.shared().kit else {
+            fatalError("rtm kit nil")
+        }
+        guard let inviter = AgoraRtm.shared().inviter else {
+            fatalError("rtm inviter nil")
+        }
+
+        print("startOutgoingCall")
+        // rtm query online status
+        kit.queryPeerOnline(remoteNumber, success: {(onlineStatus) in
+            switch onlineStatus {
+            case .online: sendInvitation(remote: remoteNumber, channel: "test")
+            case .offline: result("peer offline")
+            case .unreachable: result("peer unreachable")
+            @unknown default:  fatalError("queryPeerOnline")
+            }
+        }) { [weak self] (error) in
+            result(error.localizedDescription)
+        }
+
+        // rtm send invitation
+        func sendInvitation(remote: String, channel: String) {
+//            let channel = "\(localNumber)-\(remoteNumber)-\(Date().timeIntervalSinceReferenceDate)"
+            print("sendInvitation")
+            inviter.sendInvitation(peer: remoteNumber, extraContent: channel, accepted: { [weak self] in
+                guard let remote = UInt(remoteNumber) else {
+                    fatalError("string to int fail")
+                }
+
+                var data: (channel: String, remote: UInt)
+                data.channel = channel
+                data.remote = remote
+                print("call connect success: \(data)")
+                // 本地呼叫邀请成功
+                self?.methodChannel.invokeMethod("localInvitationAccept", arguments: [
+                    "channel": channel,
+                    "remote": remoteNumber
+                ])
+                result("success")
+            }, refused: { [weak self] in
+                // 本地呼叫邀请被拒绝
+                self?.methodChannel.invokeMethod("localInvitationRefused", arguments: [
+                    "remote": remote,
+                    "channel": channel
+                ])
+            }) { [weak self] (error) in
+                result(error)
+            }
+        }
+    }
+    
+    private func answerCall() {
+        guard let inviter = AgoraRtm.shared().inviter else {
+            fatalError("rtm inviter nil")
+        }
+        inviter.accpetLastIncomingInvitation()
+    }
+    
+    private func declineCall() {
+        print("callCenter declineCall")
+        
+        guard let inviter = AgoraRtm.shared().inviter else {
+            fatalError("rtm inviter nil")
+        }
+
+        inviter.refuseLastIncomingInvitation {  [weak self] (error) in
+            print(error.localizedDescription)
+        }
+    }
     
     private func login(account: String, token: String, result: @escaping FlutterResult) {
         guard let kit = AgoraRtm.shared().kit else {
@@ -81,6 +158,20 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
             result("success")
         }, fail:  {(error) in
             result(error.localizedDescription)
+        })
+    }
+    
+    private func logout(result: @escaping FlutterResult) {
+        guard let kit = AgoraRtm.shared().kit else {
+            print("AgoraRtmKit nil")
+            return
+        }
+        kit.logout(completion: { errorCode in
+            if errorCode == AgoraRtmLogoutErrorCode.ok {
+                result("success")
+            } else {
+                result("failure")
+            }
         })
     }
     
@@ -96,7 +187,7 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
         
         switch inviter.status {
         case .outgoing:
-            self.appleCallKit.endCall(of: remote)
+//            self.appleCallKit.endCall(of: remote)
             inviter.cancelLastOutgoingInvitation(fail: errorHandle)
             result("success")
         default:
@@ -107,156 +198,33 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
 
 extension SwiftFlutterAgoraMessengerPlugin: AgoraRtmInvitertDelegate {
     func inviter(_ inviter: AgoraRtmCallKit, didReceivedIncoming invitation: AgoraRtmInvitation) {
-        appleCallKit.showIncomingCall(of: invitation.caller)
-        
+        // remoteInvitationReceived
+        methodChannel.invokeMethod("remoteInvitationReceived", arguments: [
+            "remote": invitation.caller,
+            "channel": invitation.content
+        ])
     }
     
     func inviter(_ inviter: AgoraRtmCallKit, remoteDidCancelIncoming invitation: AgoraRtmInvitation) {
-        appleCallKit.endCall(of: invitation.caller)
-//        if let vc = self.presentedViewController as? VideoChatViewController {
-//            vc.leaveChannel()
-//            vc.dismiss(animated: true, completion: nil)
-//        }
+        // remoteInvitationCanceled
+        methodChannel.invokeMethod("remoteInvitationCanceled", arguments: [
+            "remote": invitation.caller,
+            "channel": invitation.content
+        ])
+    }
+    
+    func inviter(_ inviter: AgoraRtmCallKit, remoteDidRefused invitation: AgoraRtmInvitation) {
+        methodChannel.invokeMethod("remoteInvitationRefused", arguments: [
+            "remote": invitation.caller,
+            "channel": invitation.content
+        ])
+    }
+    
+    func inviter(_ inviter: AgoraRtmCallKit, remoteDidAccept invitation: AgoraRtmInvitation) {
+        methodChannel.invokeMethod("remoteInvitationAccepted", arguments: [
+            "remote": invitation.caller,
+            "channel": invitation.content
+        ])
     }
 }
 
-extension SwiftFlutterAgoraMessengerPlugin: CallCenterDelegate {
-    func callCenter(_ callCenter: CallCenter, answerCall session: String) {
-        // 接听电话
-        print("callCenter answerCall")
-                
-        guard let inviter = AgoraRtm.shared().inviter else {
-            fatalError("rtm inviter nil")
-        }
-
-        guard let channel = inviter.lastIncomingInvitation?.content else {
-            fatalError("lastIncomingInvitation content nil")
-        }
-
-        guard let remote = UInt(session) else {
-            fatalError("string to int fail")
-        }
-
-        inviter.accpetLastIncomingInvitation()
-        methodChannel.invokeMethod("answerCall", arguments: ["channel": channel, "remote": remote])
-        // present VideoChat VC after 'callCenterDidActiveAudioSession'
-//        self.prepareToVideoChat = { [weak self] in
-//            var data: (channel: String, remote: UInt)
-//            data.channel = channel
-//            data.remote = remote
-//            self?.performSegue(withIdentifier: "DialToVideoChat", sender: data)
-//        }
-    }
-    
-    func callCenter(_ callCenter: CallCenter, declineCall session: String) {
-        print("callCenter declineCall")
-        
-        guard let inviter = AgoraRtm.shared().inviter else {
-            fatalError("rtm inviter nil")
-        }
-
-        inviter.refuseLastIncomingInvitation {  [weak self] (error) in
-//            self?.showAlert(error.localizedDescription)
-            print(error.localizedDescription)
-        }
-    }
-    
-    func callCenter(_ callCenter: CallCenter, startCall session: String) {
-        // 开始呼叫
-        print("callCenter startCall")
-        
-        guard let kit = AgoraRtm.shared().kit else {
-            fatalError("rtm kit nil")
-        }
-
-        guard let localNumber = localNumber else {
-            fatalError("localNumber nil")
-        }
-
-        guard let inviter = AgoraRtm.shared().inviter else {
-            fatalError("rtm inviter nil")
-        }
-
-//        guard let vc = self.presentedViewController as? CallingViewController else {
-//            fatalError("CallingViewController nil")
-//        }
-
-        let remoteNumber = session
-
-        // rtm query online status
-        kit.queryPeerOnline(remoteNumber, success: {(onlineStatus) in
-            switch onlineStatus {
-            case .online:      sendInvitation(remote: remoteNumber)
-            case .offline: print("peer offline")
-            case .unreachable: print("peer unreachable")
-            @unknown default:  fatalError("queryPeerOnline")
-            }
-        }) { [weak self] (error) in
-            self?.methodChannel.invokeMethod("close", arguments: [
-                "type": "error",
-                "value": error
-            ])
-//            vc?.close(.error(error))
-        }
-
-        // rtm send invitation
-        func sendInvitation(remote: String) {
-            let channel = "\(localNumber)-\(remoteNumber)-\(Date().timeIntervalSinceReferenceDate)"
-
-            inviter.sendInvitation(peer: remoteNumber, extraContent: channel, accepted: { [weak self] in
-//                vc?.close(.toVideoChat)
-
-                self?.appleCallKit.setCallConnected(of: remote)
-
-                guard let remote = UInt(remoteNumber) else {
-                    fatalError("string to int fail")
-                }
-
-                var data: (channel: String, remote: UInt)
-                data.channel = channel
-                data.remote = remote
-                print("call connect success: \(data)")
-                // 呼叫邀请成功跳转到视频通话页面
-                self?.methodChannel.invokeMethod("localInvitationAccept", arguments: [
-                    "channel": channel,
-                    "remote": remote
-                ])
-//                self?.performSegue(withIdentifier: "DialToVideoChat", sender: data)
-
-            }, refused: { [weak self] in
-                print("remote reject")
-                self?.methodChannel.invokeMethod("close", arguments: [
-                    "type": "remoteReject",
-                    "value": remoteNumber
-                ])
-//                vc?.close(.remoteReject(remoteNumber))
-            }) { [weak self] (error) in
-                print("error: \(error)")
-                self?.methodChannel.invokeMethod("close", arguments: [
-                    "type": "error",
-                    "value": error
-                ])
-//                vc?.close(.error(error))
-            }
-        }
-    }
-    
-    func callCenter(_ callCenter: CallCenter, muteCall muted: Bool, session: String) {
-        print("callCenter muteCall")
-    }
-    
-    func callCenter(_ callCenter: CallCenter, endCall session: String) {
-        print("callCenter endCall")
-//        self.prepareToVideoChat = nil
-    }
-    
-    func callCenterDidActiveAudioSession(_ callCenter: CallCenter) {
-        print("callCenter didActiveAudioSession")
-        
-        // Incoming call
-//        if let prepare = self.prepareToVideoChat {
-//            prepare()
-//        }
-    }
-    
-}

@@ -19,10 +19,11 @@ class _CallingPageState extends State<CallingPage> {
   }
 
   _answer() {
-    FlutterAgoraMessenger().answer().then((r) {
-      // 接听远端呼叫
-      print("接听远端呼叫");
-    });
+    _agoraMessenger.answerCall();
+  }
+
+  _refuse() {
+    _agoraMessenger.declineCall();
   }
 
   @override
@@ -33,43 +34,49 @@ class _CallingPageState extends State<CallingPage> {
         // 本地呼叫被接听，开启视频通话页面
         print("本地呼叫被接听，开启视频通话页面");
       });
-      _agoraMessenger.startOutgoingCall(widget._peerId);
+      _agoraMessenger.setLocalInvitationRefused((channel, remote) {
+        print("本地呼叫被拒绝");
+        Navigator.pop(context);
+      });
+      _agoraMessenger.startOutgoingCall(widget._peerId).then((r) {
+        if (r == "success") {
+          // 等同于LocalInvitationAccept方法回调
+        } else {
+          print("本地呼叫失败，请检查本机用户是否登陆: $r");
+          Navigator.pop(context);
+        }
+      });
     }
   }
 
   @override
   void dispose() {
-    if (widget._isOutGoing) {
-      _agoraMessenger.endCall(widget._peerId);
-    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(widget._isOutGoing ? "正在呼叫。。。" : "有新的呼叫邀请。。。"),
-          SizedBox(height: 20,),
-          TextButton(
-              onPressed: widget._isOutGoing ? _hungUp() : _answer(),
-              child: Text(widget._isOutGoing ? "挂断" : "接听")
-          ),
-          SizedBox(height: 10,),
-          widget._isOutGoing
-              ? SizedBox()
-              : TextButton(
-              onPressed: () {
-                // _hungUp();
-                // 挂断远端呼叫
-                //
-              },
-              child: Text("挂断")
-          )
-        ],
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(widget._isOutGoing ? "正在呼叫。。。" : "有新的呼叫邀请。。。"),
+            SizedBox(height: 20,),
+            TextButton(
+                onPressed: widget._isOutGoing ? _hungUp : _answer,
+                child: Text(widget._isOutGoing ? "挂断" : "接听")
+            ),
+            SizedBox(height: 10,),
+            widget._isOutGoing
+                ? SizedBox()
+                : TextButton(
+                onPressed: _refuse,
+                child: Text("挂断")
+            )
+          ],
+        ),
       ),
     );
   }

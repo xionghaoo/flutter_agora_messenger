@@ -19,11 +19,13 @@ enum LoginStatus {
 protocol AgoraRtmInvitertDelegate: NSObjectProtocol {
     func inviter(_ inviter: AgoraRtmCallKit, didReceivedIncoming invitation: AgoraRtmInvitation)
     func inviter(_ inviter: AgoraRtmCallKit, remoteDidCancelIncoming invitation: AgoraRtmInvitation)
+    func inviter(_ inviter: AgoraRtmCallKit, remoteDidRefused invitation: AgoraRtmInvitation)
+    func inviter(_ inviter: AgoraRtmCallKit, remoteDidAccept invitation: AgoraRtmInvitation)
 }
 
 struct AgoraRtmInvitation {
     var content: String?
-    var caller: String // outgoint call
+var caller: String // outgoint call
     var callee: String // incoming call
     
     fileprivate static func agRemoteInvitation(_ ag: AgoraRtmRemoteInvitation) -> AgoraRtmInvitation {
@@ -325,11 +327,31 @@ extension AgoraRtm: AgoraRtmCallDelegate {
     
     func rtmCallKit(_ callKit: AgoraRtmCallKit, remoteInvitationRefused remoteInvitation: AgoraRtmRemoteInvitation) {
         print("rtmCallKit remoteInvitationRefused")
-        self.lastIncomingInvitation = nil
+        let rtm = AgoraRtm.shared()
+        
+        guard let inviter = rtm.inviter else {
+            fatalError("rtm inviter nil")
+        }
+        
+        DispatchQueue.main.async { [weak self] in
+            let invitation = AgoraRtmInvitation.agRemoteInvitation(remoteInvitation)
+            self?.inviterDelegate?.inviter(inviter, remoteDidRefused: invitation)
+            self?.lastIncomingInvitation = nil
+        }
     }
     
     func rtmCallKit(_ callKit: AgoraRtmCallKit, remoteInvitationAccepted remoteInvitation: AgoraRtmRemoteInvitation) {
         print("rtmCallKit remoteInvitationAccepted")
-        self.lastIncomingInvitation = nil
+        let rtm = AgoraRtm.shared()
+        
+        guard let inviter = rtm.inviter else {
+            fatalError("rtm inviter nil")
+        }
+        
+        DispatchQueue.main.async { [weak self] in
+            let invitation = AgoraRtmInvitation.agRemoteInvitation(remoteInvitation)
+            self?.inviterDelegate?.inviter(inviter, remoteDidAccept: invitation)
+            self?.lastIncomingInvitation = nil
+        }
     }
 }

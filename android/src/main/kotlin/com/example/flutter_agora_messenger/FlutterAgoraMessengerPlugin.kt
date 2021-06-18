@@ -56,6 +56,9 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
           login(token, account, result)
         }
       }
+      "logout" -> {
+        logout(result)
+      }
       "startOutgoingCall" -> {
         val phoneNumber = call.argument<String>("phoneNumber")
         if (phoneNumber != null) {
@@ -68,8 +71,11 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
           hungUp(remote, result)
         }
       }
-      "answer" -> {
-        answer(result)
+      "answerCall" -> {
+        answerCall(result)
+      }
+      "declineCall" -> {
+        declineCall(result)
       }
     }
   }
@@ -111,6 +117,22 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
           TAG,
           "rtm client login failed:" + errorInfo.errorDescription
         )
+      }
+    })
+  }
+
+  private fun logout(result: Result) {
+    mRtmClient.logout(object : ResultCallback<Void?> {
+      override fun onSuccess(p0: Void?) {
+        handler.post {
+          result.success("success")
+        }
+      }
+
+      override fun onFailure(p0: ErrorInfo?) {
+        handler.post {
+          result.error("101", "failure", null)
+        }
       }
     })
   }
@@ -180,8 +202,24 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
     })
   }
 
-  private fun answer(result: Result) {
+  private fun answerCall(result: Result) {
     rtmCallManager.acceptRemoteInvitation(global?.remoteInvitation, object : ResultCallback<Void> {
+      override fun onSuccess(p0: Void?) {
+        handler.post {
+          result.success("success")
+        }
+      }
+
+      override fun onFailure(p0: ErrorInfo?) {
+        handler.post {
+          result.success(p0?.errorDescription)
+        }
+      }
+    })
+  }
+
+  private fun declineCall(result: Result) {
+    rtmCallManager.refuseRemoteInvitation(global?.remoteInvitation, object : ResultCallback<Void> {
       override fun onSuccess(p0: Void?) {
         handler.post {
           result.success("success")
@@ -226,16 +264,22 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
   }
 
   override fun onLocalInvitationAccepted(localInvitation: LocalInvitation?, response: String?) {
-    FlutterLog.d(TAG, "onLocalInvitationAccepted: ${localInvitation?.calleeId}, ${localInvitation?.channelId}")
+    handler.post {
+      val args = HashMap<String, String?>()
+      args.put("channel", localInvitation?.content)
+      args.put("remote", localInvitation?.calleeId)
+      methodChannel.invokeMethod("localInvitationAccept", args)
+      FlutterLog.d(TAG, "onLocalInvitationAccepted: ${localInvitation?.calleeId}, ${localInvitation?.channelId}")
+    }
   }
 
   override fun onLocalInvitationRefused(localInvitation: LocalInvitation?, response: String?) {
     handler.post {
       // 本地呼叫 - 对方拒绝
       val args = HashMap<String, String?>()
-      args.put("type", "remoteReject")
-      args.put("value", localInvitation?.calleeId)
-      methodChannel.invokeMethod("close", args)
+      args.put("channel", localInvitation?.content)
+      args.put("remote", localInvitation?.calleeId)
+      methodChannel.invokeMethod("localInvitationRefused", args)
       FlutterLog.d(TAG, "onLocalInvitationRefused: ${localInvitation?.calleeId}, ${localInvitation?.channelId}")
     }
   }
@@ -258,23 +302,39 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
       val args = HashMap<String, String?>()
       args.put("channel", remoteInvitation?.channelId)
       args.put("remote", remoteInvitation?.callerId)
-      methodChannel.invokeMethod("onRemoteInvitationReceived", args)
+      methodChannel.invokeMethod("remoteInvitationReceived", args)
     }
   }
 
   override fun onRemoteInvitationAccepted(remoteInvitation: RemoteInvitation?) {
     FlutterLog.d(TAG, "onRemoteInvitationAccepted: ${remoteInvitation?.callerId}, ${remoteInvitation?.channelId}")
-
+    handler.post {
+      val args = HashMap<String, String?>()
+      args.put("channel", remoteInvitation?.channelId)
+      args.put("remote", remoteInvitation?.callerId)
+      methodChannel.invokeMethod("remoteInvitationAccepted", args)
+    }
   }
 
   override fun onRemoteInvitationRefused(remoteInvitation: RemoteInvitation?) {
     FlutterLog.d(TAG, "onRemoteInvitationRefused: ${remoteInvitation?.callerId}, ${remoteInvitation?.channelId}")
+    handler.post {
+      val args = HashMap<String, String?>()
+      args.put("channel", remoteInvitation?.channelId)
+      args.put("remote", remoteInvitation?.callerId)
+      methodChannel.invokeMethod("remoteInvitationRefused", args)
+    }
 
   }
 
   override fun onRemoteInvitationCanceled(remoteInvitation: RemoteInvitation?) {
     FlutterLog.d(TAG, "onRemoteInvitationCanceled: ${remoteInvitation?.callerId}, ${remoteInvitation?.channelId}")
-
+    handler.post {
+      val args = HashMap<String, String?>()
+      args.put("channel", remoteInvitation?.channelId)
+      args.put("remote", remoteInvitation?.callerId)
+      methodChannel.invokeMethod("remoteInvitationCanceled", args)
+    }
   }
 
   override fun onRemoteInvitationFailure(remoteInvitation: RemoteInvitation?, errorCode: Int) {

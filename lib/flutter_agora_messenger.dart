@@ -3,10 +3,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-typedef AnswerCall(String channel, int remote);
-typedef CloseCallback(String type, String value);
-typedef LocalInvitationAccept(String channel, int remote);
-typedef OnRemoteInvitationReceived(String channel, String remote);
+typedef LocalInvitationCallback(String channel, String remote);
+typedef RemoteInvitationCallback(String channel, String remote);
 
 class FlutterAgoraMessenger {
   
@@ -20,52 +18,76 @@ class FlutterAgoraMessenger {
     return _instance!;
   }
 
-  AnswerCall? _answerCall;
-  LocalInvitationAccept? _localInvitationAccept;
-  OnRemoteInvitationReceived? _onRemoteInvitationReceived;
-  CloseCallback? _closeCallback;
+  LocalInvitationCallback? _localInvitationAccept;
+  LocalInvitationCallback? _localInvitationRefused;
+  RemoteInvitationCallback? _remoteInvitationReceived;
+  RemoteInvitationCallback? _remoteInvitationCanceled;
+  RemoteInvitationCallback? _remoteInvitationRefused;
+  RemoteInvitationCallback? _remoteInvitationAccepted;
 
   FlutterAgoraMessenger._(this._methodChannel) {
+    // native call flutter
     _methodChannel.setMethodCallHandler((call) {
       print("call: ${call.method}");
+      final channel = call.arguments["channel"] as String?;
+      final remote = call.arguments["remote"] as String?;
+      print("${call.method}: $channel, $remote");
       switch (call.method) {
-        case "answerCall":
-          // ios only 对方呼叫，本地应答
-          final channel = call.arguments["channel"] as String;
-          final remote = call.arguments["remote"] as int;
-          _answerCall?.call(channel, remote);
-          break;
         case "localInvitationAccept":
-          // ios only 本地呼叫，对方应答
-          final channel = call.arguments["channel"] as String;
-          final remote = call.arguments["remote"] as int;
-          _localInvitationAccept?.call(channel, remote);
+          _localInvitationAccept?.call(channel!, remote!);
           break;
-        case "close":
-          final type = call.arguments["type"] as String;
-          if (type == "remoteReject") {
-            final remoteNumber = call.arguments["value"] as String;
-            endCall(remoteNumber);
-            _closeCallback?.call(type, remoteNumber);
-          } else if (type == "error") {
-            final error = call.arguments["value"] as String;
-            _closeCallback?.call(type, error);
-          }
+        case "localInvitationRefused":
+          _localInvitationRefused?.call(channel!, remote!);
           break;
-        case "onRemoteInvitationReceived":
-          // Android only 远程呼叫邀请
-          final channel = call.arguments["channel"] as String;
-          final remote = call.arguments["remote"] as String;
-          _onRemoteInvitationReceived?.call(channel, remote);
+        case "remoteInvitationReceived":
+          _remoteInvitationReceived?.call(channel!, remote!);
+          break;
+        case "remoteInvitationCanceled":
+          _remoteInvitationCanceled?.call(channel!, remote!);
+          break;
+        case "remoteInvitationRefused":
+          _remoteInvitationRefused?.call(channel!, remote!);
+          break;
+        case "remoteInvitationAccepted":
+          _remoteInvitationAccepted?.call(channel!, remote!);
           break;
       }
       return Future.value(null);
     });
     
   }
+
+  setLocalInvitationAccept(LocalInvitationCallback call) {
+    _localInvitationAccept = call;
+  }
+
+  setLocalInvitationRefused(LocalInvitationCallback call) {
+    _localInvitationRefused = call;
+  }
+
+  setRemoteInvitationReceived(RemoteInvitationCallback call) {
+    _remoteInvitationReceived = call;
+  }
+
+  setRemoteInvitationCanceled(RemoteInvitationCallback call) {
+    _remoteInvitationCanceled = call;
+  }
+
+  setRemoteInvitationRefused(RemoteInvitationCallback call) {
+    _remoteInvitationRefused = call;
+  }
+
+  setRemoteInvitationAccepted(RemoteInvitationCallback call) {
+    _remoteInvitationAccepted = call;
+  }
+
+  // setCloseCallback(CloseCallback callback) {
+  //   _closeCallback = callback;
+  // }
   
   late final MethodChannel _methodChannel;
 
+  // ----   flutter call native start   ------
   initial(String appId) {
     _methodChannel.invokeMethod("initial", {
       "appId": appId
@@ -73,23 +95,27 @@ class FlutterAgoraMessenger {
   }
   
   Future<String?> login(String account, String token) async {
-    return _methodChannel.invokeMethod<String>("login", {
+    return await _methodChannel.invokeMethod("login", {
       "account" : account,
       "token": token
     });
   }
 
-  startOutgoingCall(String phoneNumber) {
-    _methodChannel.invokeMethod("startOutgoingCall", {
+  Future<String> logout() async {
+    return await _methodChannel.invokeMethod("logout");
+  }
+
+  Future<String> startOutgoingCall(String phoneNumber) async {
+    return await _methodChannel.invokeMethod("startOutgoingCall", {
       "phoneNumber": phoneNumber
     });
   }
   
-  endCall(String remote) {
-    _methodChannel.invokeMethod("endCall", {
-      "remote": remote
-    });
-  }
+  // endCall(String remote) {
+  //   _methodChannel.invokeMethod("endCall", {
+  //     "remote": remote
+  //   });
+  // }
 
   Future<String> hungUp(String remote) async {
     return await _methodChannel.invokeMethod("hungUp", {
@@ -97,28 +123,13 @@ class FlutterAgoraMessenger {
     });
   }
 
-  /// android only
-  Future<String> answer() async {
-    return await _methodChannel.invokeMethod("answer");
+  answerCall() {
+    return _methodChannel.invokeMethod("answerCall");
   }
 
-  /// ios only
-  setAnswerCallback(AnswerCall answerCall) {
-    _answerCall = answerCall;
+  declineCall() {
+    return _methodChannel.invokeMethod("declineCall");
   }
-
-  setLocalInvitationAccept(LocalInvitationAccept call) {
-    _localInvitationAccept = call;
-  }
-
-  /// android only
-  setOnRemoteInvitationReceived(OnRemoteInvitationReceived call) {
-    _onRemoteInvitationReceived = call;
-  }
-
-  setCloseCallback(CloseCallback callback) {
-    _closeCallback = callback;
-  }
-
+  // ----   flutter call native end   ------
 
 }

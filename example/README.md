@@ -19,3 +19,10 @@ A 调用声网rtm sdk，调用RTM::queryPeersOnlineStatus，RTM::sendLocalInvita
 B rtm sdk的IEventListener::onRemoteInvitationReceived收到回调，调用RTM::acceptRemoteInvitation方法接受呼叫请求，
 
 A 收到IEventListener::onLocalInvitationAccepted回调
+
+## 相关回调事件
+
+呼叫的用户不在线，发生错误
+本地呼叫失败，被拒绝
+
+
