@@ -61,8 +61,10 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
       }
       "startOutgoingCall" -> {
         val phoneNumber = call.argument<String>("phoneNumber")
-        if (phoneNumber != null) {
-          startOutgoingCall(phoneNumber)
+        val channel = call.argument<String>("channel")
+        val content = call.argument<String?>("content")
+        if (phoneNumber != null && channel != null) {
+          startOutgoingCall(phoneNumber, channel, content, result)
         }
       }
       "hungUp" -> {
@@ -137,32 +139,26 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
     })
   }
 
-  private fun startOutgoingCall(peer: String) {
-//    val number: Int = mCallInputManager.getCallNumber()
+  private fun startOutgoingCall(peer: String, channel: String, content: String?, result: Result) {
     val peerSet: MutableSet<String> = HashSet()
     peerSet.add(peer)
     mRtmClient.queryPeersOnlineStatus(peerSet, object : ResultCallback<Map<String?, Boolean?>> {
       override fun onSuccess(statusMap: Map<String?, Boolean?>) {
         val bOnline = statusMap[peer]
         if (bOnline != null && bOnline) {
-          // 对方在线
-//          val uid: String = java.lang.String.valueOf(mActivity.application().config().getUserId())
-          val channel: String = RtcUtils.channelName(localNumber, peer)
-//          mActivity.gotoCallingInterface(peer, channel, Constants.ROLE_CALLER)
-
           val invitation: LocalInvitation = rtmCallManager.createLocalInvitation(peer)
-          invitation.content = channel
+          invitation.channelId = channel
+          invitation.content = content
           rtmCallManager.sendLocalInvitation(invitation, object : ResultCallback<Void> {
             override fun onSuccess(p0: Void?) {
-
+              handler.post {
+                result.success("success")
+              }
             }
 
             override fun onFailure(p0: ErrorInfo?) {
               handler.post {
-                val args = HashMap<String, String?>()
-                args.put("type", "error")
-                args.put("value", p0?.errorDescription)
-                methodChannel.invokeMethod("close", args)
+                result.error("103", p0?.errorDescription, null)
               }
             }
           })
@@ -170,19 +166,17 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
         } else {
           // 对方不在线
             handler.post {
+              result.error("103", "peer offline", null)
               Toast.makeText(context, "您呼叫的用户不在线", Toast.LENGTH_SHORT).show()
             }
-//          mActivity.runOnUiThread(Runnable {
-//            Toast.makeText(
-//              mActivity,
-//              R.string.peer_not_online,
-//              Toast.LENGTH_SHORT
-//            ).show()
-//          })
         }
       }
 
-      override fun onFailure(errorInfo: ErrorInfo) {}
+      override fun onFailure(errorInfo: ErrorInfo) {
+        handler.post {
+          result.error("104", errorInfo.errorDescription, null)
+        }
+      }
     })
   }
 
@@ -266,7 +260,8 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
   override fun onLocalInvitationAccepted(localInvitation: LocalInvitation?, response: String?) {
     handler.post {
       val args = HashMap<String, String?>()
-      args.put("channel", localInvitation?.content)
+      args.put("channel", localInvitation?.channelId)
+      args.put("content", localInvitation?.content)
       args.put("remote", localInvitation?.calleeId)
       methodChannel.invokeMethod("localInvitationAccept", args)
       FlutterLog.d(TAG, "onLocalInvitationAccepted: ${localInvitation?.calleeId}, ${localInvitation?.channelId}")
@@ -277,7 +272,8 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
     handler.post {
       // 本地呼叫 - 对方拒绝
       val args = HashMap<String, String?>()
-      args.put("channel", localInvitation?.content)
+      args.put("channel", localInvitation?.channelId)
+      args.put("content", localInvitation?.content)
       args.put("remote", localInvitation?.calleeId)
       methodChannel.invokeMethod("localInvitationRefused", args)
       FlutterLog.d(TAG, "onLocalInvitationRefused: ${localInvitation?.calleeId}, ${localInvitation?.channelId}")
@@ -301,6 +297,7 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
     handler.post {
       val args = HashMap<String, String?>()
       args.put("channel", remoteInvitation?.channelId)
+      args.put("content", remoteInvitation?.content)
       args.put("remote", remoteInvitation?.callerId)
       methodChannel.invokeMethod("remoteInvitationReceived", args)
     }
@@ -311,6 +308,7 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
     handler.post {
       val args = HashMap<String, String?>()
       args.put("channel", remoteInvitation?.channelId)
+      args.put("content", remoteInvitation?.content)
       args.put("remote", remoteInvitation?.callerId)
       methodChannel.invokeMethod("remoteInvitationAccepted", args)
     }
@@ -321,6 +319,7 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
     handler.post {
       val args = HashMap<String, String?>()
       args.put("channel", remoteInvitation?.channelId)
+      args.put("content", remoteInvitation?.content)
       args.put("remote", remoteInvitation?.callerId)
       methodChannel.invokeMethod("remoteInvitationRefused", args)
     }
@@ -332,6 +331,7 @@ class FlutterAgoraMessengerPlugin: FlutterPlugin, MethodCallHandler, IEventListe
     handler.post {
       val args = HashMap<String, String?>()
       args.put("channel", remoteInvitation?.channelId)
+      args.put("content", remoteInvitation?.content)
       args.put("remote", remoteInvitation?.callerId)
       methodChannel.invokeMethod("remoteInvitationCanceled", args)
     }

@@ -17,24 +17,24 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     // 远端呼叫事件监听
-    _agoraMessenger.setRemoteInvitationReceived((channel, remote) {
+    _agoraMessenger.setRemoteInvitationReceived((channel, remote, content) {
       // 启动呼叫页面
       print("有新的呼叫邀请");
       Navigator.push(context, MaterialPageRoute(builder: (context) => CallingPage(false, remote)));
     });
 
-    _agoraMessenger.setRemoteInvitationCanceled((channel, remote){
+    _agoraMessenger.setRemoteInvitationCanceled((channel, remote, content){
       // 远端呼叫被取消
       print("远端呼叫被取消");
       Navigator.pop(context);
     });
 
-    _agoraMessenger.setRemoteInvitationRefused((channel, remote) {
+    _agoraMessenger.setRemoteInvitationRefused((channel, remote, content) {
       print("远端呼叫被拒绝");
       Navigator.pop(context);
     });
 
-    _agoraMessenger.setRemoteInvitationAccepted((channel, remote) {
+    _agoraMessenger.setRemoteInvitationAccepted((channel, remote, content) {
       Navigator.pop(context);
       print("远端呼叫被接受，开启视频通话页面");
     });

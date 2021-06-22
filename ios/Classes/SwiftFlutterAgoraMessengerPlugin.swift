@@ -52,8 +52,10 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
         logout(result: result)
     case "startOutgoingCall":
         if let args = call.arguments as? Dictionary<String, Any?>,
-           let number = args["phoneNumber"] as? String {
-            startOutgoingCall(remoteNumber: number, result: result)
+           let number = args["phoneNumber"] as? String,
+           let channel = args["channel"] as? String,
+           let content = args["content"] as? String {
+            startOutgoingCall(remoteNumber: number, channel: channel, content: content, result: result)
         } else {
             result("param error")
         }
@@ -77,7 +79,7 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
   }
     
     // 直接调用rtm
-    private func startOutgoingCall(remoteNumber: String, result: @escaping FlutterResult) {
+    private func startOutgoingCall(remoteNumber: String, channel: String, content: String, result: @escaping FlutterResult) {
         guard let kit = AgoraRtm.shared().kit else {
             fatalError("rtm kit nil")
         }
@@ -89,20 +91,20 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
         // rtm query online status
         kit.queryPeerOnline(remoteNumber, success: {(onlineStatus) in
             switch onlineStatus {
-            case .online: sendInvitation(remote: remoteNumber, channel: "test")
+            case .online: sendInvitation(remote: remoteNumber, channel: channel, content: content)
             case .offline: result("peer offline")
             case .unreachable: result("peer unreachable")
             @unknown default:  fatalError("queryPeerOnline")
             }
-        }) { [weak self] (error) in
+        }) { (error) in
             result(error.localizedDescription)
         }
 
         // rtm send invitation
-        func sendInvitation(remote: String, channel: String) {
+        func sendInvitation(remote: String, channel: String, content: String) {
 //            let channel = "\(localNumber)-\(remoteNumber)-\(Date().timeIntervalSinceReferenceDate)"
             print("sendInvitation")
-            inviter.sendInvitation(peer: remoteNumber, extraContent: channel, accepted: { [weak self] in
+            inviter.sendInvitation(peer: remoteNumber, channel: channel, extraContent: content, accepted: { [weak self] in
                 guard let remote = UInt(remoteNumber) else {
                     fatalError("string to int fail")
                 }
@@ -114,6 +116,7 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
                 // 本地呼叫邀请成功
                 self?.methodChannel.invokeMethod("localInvitationAccept", arguments: [
                     "channel": channel,
+                    "content": content,
                     "remote": remoteNumber
                 ])
                 result("success")
@@ -121,9 +124,10 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
                 // 本地呼叫邀请被拒绝
                 self?.methodChannel.invokeMethod("localInvitationRefused", arguments: [
                     "remote": remote,
+                    "content": content,
                     "channel": channel
                 ])
-            }) { [weak self] (error) in
+            }) { (error) in
                 result(error)
             }
         }
@@ -143,7 +147,7 @@ public class SwiftFlutterAgoraMessengerPlugin: NSObject, FlutterPlugin {
             fatalError("rtm inviter nil")
         }
 
-        inviter.refuseLastIncomingInvitation {  [weak self] (error) in
+        inviter.refuseLastIncomingInvitation { (error) in
             print(error.localizedDescription)
         }
     }
@@ -201,7 +205,8 @@ extension SwiftFlutterAgoraMessengerPlugin: AgoraRtmInvitertDelegate {
         // remoteInvitationReceived
         methodChannel.invokeMethod("remoteInvitationReceived", arguments: [
             "remote": invitation.caller,
-            "channel": invitation.content
+            "content": invitation.content,
+            "channel": invitation.channel
         ])
     }
     
@@ -209,21 +214,24 @@ extension SwiftFlutterAgoraMessengerPlugin: AgoraRtmInvitertDelegate {
         // remoteInvitationCanceled
         methodChannel.invokeMethod("remoteInvitationCanceled", arguments: [
             "remote": invitation.caller,
-            "channel": invitation.content
+            "content": invitation.content,
+            "channel": invitation.channel
         ])
     }
     
     func inviter(_ inviter: AgoraRtmCallKit, remoteDidRefused invitation: AgoraRtmInvitation) {
         methodChannel.invokeMethod("remoteInvitationRefused", arguments: [
             "remote": invitation.caller,
-            "channel": invitation.content
+            "content": invitation.content,
+            "channel": invitation.channel
         ])
     }
     
     func inviter(_ inviter: AgoraRtmCallKit, remoteDidAccept invitation: AgoraRtmInvitation) {
         methodChannel.invokeMethod("remoteInvitationAccepted", arguments: [
             "remote": invitation.caller,
-            "channel": invitation.content
+            "content": invitation.content,
+            "channel": invitation.channel
         ])
     }
 }

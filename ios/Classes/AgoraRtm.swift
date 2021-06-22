@@ -25,7 +25,8 @@ protocol AgoraRtmInvitertDelegate: NSObjectProtocol {
 
 struct AgoraRtmInvitation {
     var content: String?
-var caller: String // outgoint call
+    var channel: String?
+    var caller: String // outgoint call
     var callee: String // incoming call
     
     fileprivate static func agRemoteInvitation(_ ag: AgoraRtmRemoteInvitation) -> AgoraRtmInvitation {
@@ -34,6 +35,7 @@ var caller: String // outgoint call
         }
         
         let invitation = AgoraRtmInvitation(content: ag.content,
+                                            channel: ag.channelId,
                                             caller: ag.callerId,
                                             callee: account)
         
@@ -46,6 +48,7 @@ var caller: String // outgoint call
         }
         
         let invitation = AgoraRtmInvitation(content: ag.content,
+                                            channel: ag.channelId,
                                             caller: account,
                                             callee: ag.calleeId)
         
@@ -172,12 +175,13 @@ extension AgoraRtmCallKit {
         }
     }
     
-    func sendInvitation(peer: String, extraContent: String? = nil, accepted: Completion = nil, refused: Completion = nil, fail: ErrorCompletion = nil) {
+    func sendInvitation(peer: String, channel: String? = nil, extraContent: String? = nil, accepted: Completion = nil, refused: Completion = nil, fail: ErrorCompletion = nil) {
         print("rtm sendInvitation peer: \(peer)")
         
         let rtm = AgoraRtm.shared()
         let invitation = AgoraRtmLocalInvitation(calleeId: peer)
         invitation.content = extraContent
+        invitation.channelId = channel
         
         rtm.lastOutgoingInvitation = invitation
         
@@ -354,4 +358,5 @@ extension AgoraRtm: AgoraRtmCallDelegate {
             self?.lastIncomingInvitation = nil
         }
     }
+    
 }

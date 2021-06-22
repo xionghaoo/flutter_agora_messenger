@@ -1,7 +1,17 @@
-# flutter_agora_messenger_example
+# flutter_agora_messenger
 > 声网呼叫邀请SDK
 
 [声网官方文档](https://docs.agora.io/cn/Real-time-Messaging/landing-page?platform=Android)
+
+## 安装方式
+
+1. github
+```yaml
+flutter_agora_messenger:
+    path: ../flutter_agora_messenger
+```
+
+2. pub
 
 ## 呼叫流程 (A 呼叫 B)
 

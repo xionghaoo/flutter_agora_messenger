@@ -30,15 +30,15 @@ class _CallingPageState extends State<CallingPage> {
   void initState() {
     super.initState();
     if (widget._isOutGoing) {
-      _agoraMessenger.setLocalInvitationAccept((channel, remote) {
+      _agoraMessenger.setLocalInvitationAccept((channel, remote, content) {
         // 本地呼叫被接听，开启视频通话页面
         print("本地呼叫被接听，开启视频通话页面");
       });
-      _agoraMessenger.setLocalInvitationRefused((channel, remote) {
+      _agoraMessenger.setLocalInvitationRefused((channel, remote, content) {
         print("本地呼叫被拒绝");
         Navigator.pop(context);
       });
-      _agoraMessenger.startOutgoingCall(widget._peerId).then((r) {
+      _agoraMessenger.startOutgoingCall(widget._peerId, "test", "video").then((r) {
         if (r == "success") {
           // 等同于LocalInvitationAccept方法回调
         } else {

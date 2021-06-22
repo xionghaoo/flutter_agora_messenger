@@ -3,8 +3,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-typedef LocalInvitationCallback(String channel, String remote);
-typedef RemoteInvitationCallback(String channel, String remote);
+typedef LocalInvitationCallback(String channel, String remote, String? content);
+typedef RemoteInvitationCallback(String channel, String remote, String? content);
 
 class FlutterAgoraMessenger {
   
@@ -30,26 +30,27 @@ class FlutterAgoraMessenger {
     _methodChannel.setMethodCallHandler((call) {
       print("call: ${call.method}");
       final channel = call.arguments["channel"] as String?;
+      final content = call.arguments["content"] as String?;
       final remote = call.arguments["remote"] as String?;
       print("${call.method}: $channel, $remote");
       switch (call.method) {
         case "localInvitationAccept":
-          _localInvitationAccept?.call(channel!, remote!);
+          _localInvitationAccept?.call(channel!, remote!, content);
           break;
         case "localInvitationRefused":
-          _localInvitationRefused?.call(channel!, remote!);
+          _localInvitationRefused?.call(channel!, remote!, content);
           break;
         case "remoteInvitationReceived":
-          _remoteInvitationReceived?.call(channel!, remote!);
+          _remoteInvitationReceived?.call(channel!, remote!, content);
           break;
         case "remoteInvitationCanceled":
-          _remoteInvitationCanceled?.call(channel!, remote!);
+          _remoteInvitationCanceled?.call(channel!, remote!, content);
           break;
         case "remoteInvitationRefused":
-          _remoteInvitationRefused?.call(channel!, remote!);
+          _remoteInvitationRefused?.call(channel!, remote!, content);
           break;
         case "remoteInvitationAccepted":
-          _remoteInvitationAccepted?.call(channel!, remote!);
+          _remoteInvitationAccepted?.call(channel!, remote!, content);
           break;
       }
       return Future.value(null);
@@ -114,9 +115,11 @@ class FlutterAgoraMessenger {
 
   /// 本地呼叫
   /// peerNumber: 远端用户号码
-  Future<String> startOutgoingCall(String peerNumber) async {
+  Future<String> startOutgoingCall(String peerNumber, String channel, String? content) async {
     return await _methodChannel.invokeMethod("startOutgoingCall", {
-      "phoneNumber": peerNumber
+      "phoneNumber": peerNumber,
+      "channel": channel,
+      "content": content
     });
   }
 
