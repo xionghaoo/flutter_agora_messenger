@@ -3,6 +3,8 @@
 
 声网的云信令SDK只有android和ios版本的，这里对他们进行了Flutter的封装，可以结合声网视频通话、音频通话还有推送SDK完成音视频通话的功能
 
+***云信令呼叫邀请不支持后台呼叫，需要另外接推送SDK实现后台拉起。***
+
 [声网呼叫邀请官方文档](https://docs.agora.io/cn/Real-time-Messaging/landing-page?platform=Android)
 
 [声网RTM TOKEN生成方式](https://docs.agora.io/cn/Real-time-Messaging/token_server_rtm?platform=All%20Platforms)
