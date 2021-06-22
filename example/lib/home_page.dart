@@ -38,12 +38,6 @@ class _HomePageState extends State<HomePage> {
       Navigator.pop(context);
       print("远端呼叫被接受，开启视频通话页面");
     });
-    // _agoraMessenger.setAnswerCallback((channel, remote) {
-    //   // 接听远端呼叫 (ios 端)
-    // });
-    // _agoraMessenger.setAnswerCallback((channel, remote) {
-    //
-    // });
   }
 
   @override
