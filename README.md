@@ -27,6 +27,8 @@ dependencies:
   flutter_agora_messenger: ^x.x.x
 ```
 
+[pub地址](https://pub.dev/packages/flutter_agora_messenger/install)
+
 ## 呼叫流程 (A 呼叫 B)
 
 A 调用 ```startOutgoingCall``` 发起呼叫，B 收到 ```remoteInvitationReceived``` 事件：<br/>
